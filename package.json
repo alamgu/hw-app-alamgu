@@ -1,0 +1,40 @@
+{
+  "name": "hw-app-obsidian-common",
+  "version": "0.0.1",
+  "description": "Common routines for ledgerJS modules",
+  "main": "lib/Common.js",
+  "module": "lib-es/Common.js",
+  "types": "lib/Common.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc && tsc -m ES6 --outDir lib-es",
+    "prepare": "tsc && tsc -m ES6 --outDir lib-es"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/obsidiansystems/hw-app-obsidian-common.git"
+  },
+  "keywords": [
+    "Ledger",
+    "LedgerWallet",
+    "kda",
+    "Kadena",
+    "NanoS",
+    "Blue",
+    "Hardware Wallet"
+  ],
+  "dependencies": {
+    "@ledgerhq/hw-transport": "^6.3.0",
+    "typedoc": "^0.22.7"
+  },
+  "devDependencies": {
+    "@types/node": "^16.10.3",
+    "typescript": "^4.4.3"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/obsidiansystems/hw-app-obsidian-common/issues"
+  },
+  "homepage": "https://github.com/obsidiansystems/hw-app-obsidian-common#readme"
+}
