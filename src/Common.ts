@@ -63,11 +63,9 @@ export class Common {
     const p1 = 0;
     const p2 = 0;
     const payload = buildBip32KeyPayload(path);
-    console.log("getPublicKey payload", payload.toString("hex")); // TODO remove
     const response = await this.sendChunks(cla, ins, p1, p2, payload);
-    console.log("getPublicKey response", response.toString("hex")); // TODO remove
     const responseSize = response[0];
-    const publicKey = response.slice(1, 1 + responseSize);
+    const publicKey = response.slice(1, responseSize);
     const res: GetPublicKeyResult = {
       publicKey: publicKey.toString("hex"),
     };
@@ -98,12 +96,10 @@ export class Common {
     const bip32KeyPayload = buildBip32KeyPayload(path);
     // These are just squashed together
     const payload = Buffer.concat([hashSize, rawTxn, bip32KeyPayload])
-    console.error("signHash payload", payload.toString("hex")); // TODO remove
     // TODO batch this since the payload length can be uint32le.max long
     const response = await this.sendChunks(cla, ins, p1, p2, payload);
-    console.log("signHash response", response.toString("hex")); // TODO remove
     // TODO check this
-    const signature = response.toString("hex");
+    const signature = response.slice(0,-2).toString("hex");
     return {
       signature,
     };
@@ -116,7 +112,7 @@ export class Common {
 
   async getVersion(): Promise<GetVersionResult> {
     const [major, minor, patch, ...appName] = await this.transport.send(
-      0x80,
+      0x00,
       0x00,
       0x00,
       0x00,
@@ -146,7 +142,7 @@ export class Common {
     let rv;
     let chunkSize=230;
     for(let i=0;i<payload.length;i+=chunkSize) {
-      rv = this.transport.send(cla, ins, p1, p2, payload.slice(i, i+chunkSize));
+      rv = await this.transport.send(cla, ins, p1, p2, payload.slice(i, i+chunkSize));
     }
     return rv;
   }
