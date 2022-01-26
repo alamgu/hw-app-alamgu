@@ -65,7 +65,7 @@ export class Common {
     const payload = buildBip32KeyPayload(path);
     const response = await this.sendChunks(cla, ins, p1, p2, payload);
     const responseSize = response[0];
-    const publicKey = response.slice(1, responseSize);
+    const publicKey = response.slice(1, responseSize+1); // slice uses end index.
     const res: GetPublicKeyResult = {
       publicKey: publicKey.toString("hex"),
     };
