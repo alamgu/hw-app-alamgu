@@ -45,7 +45,7 @@ export class Common {
     this.appName = appName;
     transport.decorateAppAPIMethods(
       this,
-      ["menu", "getPublicKey", "signHash", "getVersion"],
+      ["menu", "getPublicKey", "signTransaction", "getVersion"],
       "KDA"
     );
   }
