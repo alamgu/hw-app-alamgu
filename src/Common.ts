@@ -15,6 +15,7 @@
  *  limitations under the License.
  ********************************************************************************/
 import type Transport from "@ledgerhq/hw-transport";
+import sha256 from "fast-sha256";
 
 export type GetPublicKeyResult = {
   publicKey: string;
@@ -147,6 +148,66 @@ export class Common {
     return rv;
   }
 
+  async sendWithBlocks(
+    cla: number,
+    ins: number,
+    p1: number,
+    p2: number,
+    payload: Buffer,
+    extraData: Map<Buffer, Buffer> = new Map<Buffer, Buffer>()
+  ): Promise<Buffer> {
+    let rv;
+    let chunkSize=180;
+    let chunkList = [];
+    for(let i=0; i<payload.length; i+=chunkSize) {
+      let cur = payload.slice(i, i+chunkSize);
+      chunkList.push(cur);
+    }
+    let data = new Map<Buffer, Buffer>(extraData);
+    let lastHash = Buffer.alloc(32);
+    arr.reduceRight((_, chunk) => {
+      let linkedChunk = Buffer.concat(lastHash, chunk);
+      lastHash = sha256(linkedChunk);
+      data.set(lastHash, cur);
+      return null;
+    });
+    return await handleBlocksProtocol(cla, ins, p1, p2, Buffer.concat(Buffer.from([0]), lastHash), data);
+  }
+
+  async handleBlocksProtocol(
+    cla: number,
+    ins: number,
+    p1: number,
+    p2: number,
+    initialPayload: Buffer,
+    data: Map<Buffer, Buffer>
+  ): Promise<Buffer> {
+    let payload = initialPayload;
+    let rv;
+    let result = new Buffer(0);
+    while(1) {
+      rv = await this.transport.send(cla, ins, p1, p2, payload);
+      let rv_instruction = rv[0];
+      let rv_payload = rv.slice(1);
+      switch(rv_instruction) {
+        case 0: // Result accumulating
+        case 1: // Result final
+          result = Buffer.concat(result, rv_payload);
+          break;
+        case 2: // Get chunk
+          payload = Buffer.concat(Buffer.from([1]), data.get(rv_payload));
+          break;
+        case 3: // Put chunk
+          let chunk = rv.slice(1);
+          data.set(sha256(chunk), chunk);
+          payload = Buffer.from([2]);
+          break;
+      }
+      if(rv_instruction==1) {
+        return result;
+      }
+    }
+  }
 }
 
 function buildBip32KeyPayload(path: string): Buffer {
