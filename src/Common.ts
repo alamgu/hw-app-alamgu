@@ -148,6 +148,7 @@ export class Common {
     return rv;
   }
 
+
   async sendWithBlocks(
     cla: number,
     ins: number,
@@ -158,20 +159,19 @@ export class Common {
   ): Promise<Buffer> {
     let rv;
     let chunkSize=180;
-    let chunkList = [];
+    let chunkList : Buffer[] = [];
     for(let i=0; i<payload.length; i+=chunkSize) {
       let cur = payload.slice(i, i+chunkSize);
       chunkList.push(cur);
     }
-    let data = new Map<Buffer, Buffer>(extraData);
     let lastHash = Buffer.alloc(32);
-    arr.reduceRight((_, chunk) => {
-      let linkedChunk = Buffer.concat(lastHash, chunk);
-      lastHash = sha256(linkedChunk);
-      data.set(lastHash, cur);
-      return null;
-    });
-    return await handleBlocksProtocol(cla, ins, p1, p2, Buffer.concat(Buffer.from([0]), lastHash), data);
+    let data = chunkList.reduceRight((blocks, chunk) => {
+      let linkedChunk = Buffer.concat([lastHash, chunk]);
+      lastHash = Buffer.from(sha256(linkedChunk));
+      blocks.set(lastHash, chunk);
+      return blocks;
+    }, new Map<Uint8Array, Buffer>(extraData));
+    return await this.handleBlocksProtocol(cla, ins, p1, p2, Buffer.concat([Buffer.from([HostToLedger.START]), lastHash]), data);
   }
 
   async handleBlocksProtocol(
@@ -180,35 +180,56 @@ export class Common {
     p1: number,
     p2: number,
     initialPayload: Buffer,
-    data: Map<Buffer, Buffer>
+    data: Map<Uint8Array, Buffer>
   ): Promise<Buffer> {
     let payload = initialPayload;
-    let rv;
     let result = new Buffer(0);
-    while(1) {
-      rv = await this.transport.send(cla, ins, p1, p2, payload);
-      let rv_instruction = rv[0];
+    do {
+      let rv = await this.transport.send(cla, ins, p1, p2, payload);
+      var rv_instruction = rv[0];
       let rv_payload = rv.slice(1);
+      if ( ! (rv_instruction in LedgerToHost) ) {
+        throw new TypeError("Unknown instruction returned from ledger");
+      }
       switch(rv_instruction) {
-        case 0: // Result accumulating
-        case 1: // Result final
-          result = Buffer.concat(result, rv_payload);
+        case LedgerToHost.RESULT_ACCUMULATING:
+        case LedgerToHost.RESULT_FINAL:
+          result = Buffer.concat([result, rv_payload]);
+          // Won't actually send this if we drop out of the loop for RESULT_FINAL
+          payload = Buffer.from([HostToLedger.RESULT_ACCUMULATING_RESPONSE]);
           break;
-        case 2: // Get chunk
-          payload = Buffer.concat(Buffer.from([1]), data.get(rv_payload));
+        case LedgerToHost.GET_CHUNK:
+          let chunk = data.get(rv_payload);
+          if( chunk ) {
+            payload = Buffer.concat([Buffer.from([HostToLedger.GET_CHUNK_RESPONSE_SUCCESS]), chunk]);
+          } else {
+            payload = Buffer.from([HostToLedger.GET_CHUNK_RESPONSE_FAILURE]);
+          }
           break;
-        case 3: // Put chunk
-          let chunk = rv.slice(1);
-          data.set(sha256(chunk), chunk);
-          payload = Buffer.from([2]);
+        case LedgerToHost.PUT_CHUNK:
+          data.set(Buffer.from(sha256(rv_payload)), rv_payload);
+          payload = Buffer.from([HostToLedger.PUT_CHUNK_RESPONSE]);
           break;
       }
-      if(rv_instruction==1) {
-        return result;
-      }
-    }
+    } while (rv_instruction != 1);
+    return result;
   }
 }
+
+enum LedgerToHost {
+  RESULT_ACCUMULATING = 0,
+    RESULT_FINAL = 1,
+    GET_CHUNK = 2,
+    PUT_CHUNK = 3
+};
+
+enum HostToLedger {
+  START = 0,
+    GET_CHUNK_RESPONSE_SUCCESS = 1,
+    GET_CHUNK_RESPONSE_FAILURE = 2,
+    PUT_CHUNK_RESPONSE = 3,
+    RESULT_ACCUMULATING_RESPONSE = 4
+};
 
 function buildBip32KeyPayload(path: string): Buffer {
   const paths = splitPath(path);
