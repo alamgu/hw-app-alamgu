@@ -155,7 +155,7 @@ export class Common {
     p1: number,
     p2: number,
     payload: Buffer,
-    extraData: Map<Buffer, Buffer> = new Map<Buffer, Buffer>()
+    extraData: Map<Uint8Array, Buffer> = new Map<Uint8Array, Buffer>()
   ): Promise<Buffer> {
     let rv;
     let chunkSize=180;
