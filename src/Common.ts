@@ -148,13 +148,18 @@ export class Common {
     return rv;
   }
 
-
+  /**
+   * Convert a raw payload into what is essentially a singly-linked list of chunks, which
+   allows the ledger to re-seek the data in a secure fashion.
+  */
   async sendWithBlocks(
     cla: number,
     ins: number,
     p1: number,
     p2: number,
     payload: Buffer,
+    // Constant (protocol dependent) data that the ledger may want to refer to
+    // besides the payload.
     extraData: Map<Uint8Array, Buffer> = new Map<Uint8Array, Buffer>()
   ): Promise<Buffer> {
     let rv;
@@ -164,7 +169,11 @@ export class Common {
       let cur = payload.slice(i, i+chunkSize);
       chunkList.push(cur);
     }
+    // Store the hash that points to the "rest of the list of chunks"
     let lastHash = Buffer.alloc(32);
+    // Since we are doing a foldr, we process the last chunk first
+    // We have to do it this way, because a block knows the hash of
+    // the next block.
     let data = chunkList.reduceRight((blocks, chunk) => {
       let linkedChunk = Buffer.concat([lastHash, chunk]);
       lastHash = Buffer.from(sha256(linkedChunk));
