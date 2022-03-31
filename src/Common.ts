@@ -90,15 +90,17 @@ export class Common {
     const p2 = 0;
     // Transaction payload is the byte length as uint32le followed by the bytes
     // Type guard not actually required but TypeScript can't tell that.
+    console.log(txn);
     const rawTxn = typeof txn == "string" ? Buffer.from(txn, "hex") : Buffer.from(txn);
     const hashSize = Buffer.alloc(4);
     hashSize.writeUInt32LE(rawTxn.length, 0);
     // Bip32key payload same as getPublicKey
     const bip32KeyPayload = buildBip32KeyPayload(path);
     // These are just squashed together
-    const payload = Buffer.concat([hashSize, rawTxn, bip32KeyPayload])
+    const payload_txn = Buffer.concat([hashSize, rawTxn]);
+    console.log("Payload Txn", payload_txn);
     // TODO batch this since the payload length can be uint32le.max long
-    const response = await this.sendChunks(cla, ins, p1, p2, payload);
+    const response = await this.sendChunks(cla, ins, p1, p2, [payload_txn, bip32KeyPayload]);
     // TODO check this
     const signature = response.slice(0,-2).toString("hex");
     return {
@@ -138,10 +140,13 @@ export class Common {
     ins: number,
     p1: number,
     p2: number,
-    payload: Buffer
+    payload: Buffer | Buffer[]
   ): Promise<Buffer> {
-    let rv;
+    let rv = Buffer.alloc(0);
     let chunkSize=230;
+    if( payload instanceof Array ){
+      payload = Buffer.concat(payload);
+    }
     for(let i=0;i<payload.length;i+=chunkSize) {
       rv = await this.transport.send(cla, ins, p1, p2, payload.slice(i, i+chunkSize));
     }
@@ -157,30 +162,43 @@ export class Common {
     ins: number,
     p1: number,
     p2: number,
-    payload: Buffer,
+    payload: Buffer | Buffer[],
     // Constant (protocol dependent) data that the ledger may want to refer to
     // besides the payload.
-    extraData: Map<Uint8Array, Buffer> = new Map<Uint8Array, Buffer>()
+    extraData: Map<String, Buffer> = new Map<String, Buffer>()
   ): Promise<Buffer> {
     let rv;
     let chunkSize=180;
-    let chunkList : Buffer[] = [];
-    for(let i=0; i<payload.length; i+=chunkSize) {
-      let cur = payload.slice(i, i+chunkSize);
-      chunkList.push(cur);
+    if(!( payload instanceof Array)) {
+      payload = [payload];
     }
-    // Store the hash that points to the "rest of the list of chunks"
-    let lastHash = Buffer.alloc(32);
-    // Since we are doing a foldr, we process the last chunk first
-    // We have to do it this way, because a block knows the hash of
-    // the next block.
-    let data = chunkList.reduceRight((blocks, chunk) => {
-      let linkedChunk = Buffer.concat([lastHash, chunk]);
-      lastHash = Buffer.from(sha256(linkedChunk));
-      blocks.set(lastHash, chunk);
-      return blocks;
-    }, new Map<Uint8Array, Buffer>(extraData));
-    return await this.handleBlocksProtocol(cla, ins, p1, p2, Buffer.concat([Buffer.from([HostToLedger.START]), lastHash]), data);
+    let parameterList : Buffer[] = [];
+    let data = new Map<String, Buffer>(extraData);
+    for(let j=0; j<payload.length; j++) {
+      let chunkList : Buffer[] = [];
+      for(let i=0; i<payload[j].length; i+=chunkSize) {
+        let cur = payload[j].slice(i, i+chunkSize);
+        chunkList.push(cur);
+      }
+      // Store the hash that points to the "rest of the list of chunks"
+      let lastHash = Buffer.alloc(32);
+      console.log(lastHash);
+      // Since we are doing a foldr, we process the last chunk first
+      // We have to do it this way, because a block knows the hash of
+      // the next block.
+      data = chunkList.reduceRight((blocks, chunk) => {
+        let linkedChunk = Buffer.concat([lastHash, chunk]);
+        console.log("Chunk: ", chunk);
+                    console.log("linkedChunk: ", linkedChunk);
+                                lastHash = Buffer.from(sha256(linkedChunk));
+                                blocks.set(lastHash.toString('hex'), linkedChunk);
+                                return blocks;
+      }, data);
+      parameterList.push(lastHash);
+      lastHash = Buffer.alloc(32);
+    }
+    console.log(data);
+    return await this.handleBlocksProtocol(cla, ins, p1, p2, Buffer.concat([Buffer.from([HostToLedger.START])].concat(parameterList)), data);
   }
 
   async handleBlocksProtocol(
@@ -189,14 +207,16 @@ export class Common {
     p1: number,
     p2: number,
     initialPayload: Buffer,
-    data: Map<Uint8Array, Buffer>
+    data: Map<String, Buffer>
   ): Promise<Buffer> {
     let payload = initialPayload;
-    let result = new Buffer(0);
+    let result = Buffer.alloc(0);
     do {
+      console.log("Sending payload to ledger: ", payload.toString('hex'));
       let rv = await this.transport.send(cla, ins, p1, p2, payload);
+      console.log("Received response: ", rv);
       var rv_instruction = rv[0];
-      let rv_payload = rv.slice(1);
+      let rv_payload = rv.slice(1,rv.length-2); // Last two bytes are a return code.
       if ( ! (rv_instruction in LedgerToHost) ) {
         throw new TypeError("Unknown instruction returned from ledger");
       }
@@ -208,7 +228,9 @@ export class Common {
           payload = Buffer.from([HostToLedger.RESULT_ACCUMULATING_RESPONSE]);
           break;
         case LedgerToHost.GET_CHUNK:
-          let chunk = data.get(rv_payload);
+          let chunk = data.get(rv_payload.toString('hex'));
+          console.log("Getting block ", rv_payload);
+          console.log("Getting chunk ", chunk);
           if( chunk ) {
             payload = Buffer.concat([Buffer.from([HostToLedger.GET_CHUNK_RESPONSE_SUCCESS]), chunk]);
           } else {
@@ -216,7 +238,7 @@ export class Common {
           }
           break;
         case LedgerToHost.PUT_CHUNK:
-          data.set(Buffer.from(sha256(rv_payload)), rv_payload);
+          data.set(Buffer.from(sha256(rv_payload)).toString('hex'), rv_payload);
           payload = Buffer.from([HostToLedger.PUT_CHUNK_RESPONSE]);
           break;
       }
