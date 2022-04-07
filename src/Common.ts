@@ -40,10 +40,12 @@ export type GetVersionResult = {
 export class Common {
   transport: Transport;
   appName: string | null;
+  verbose: boolean | null;
 
   constructor(transport: Transport, scrambleKey: string, appName: string | null = null) {
     this.transport = transport;
     this.appName = appName;
+    this.verbose = false;
     transport.decorateAppAPIMethods(
       this,
       ["menu", "getPublicKey", "signTransaction", "getVersion"],
@@ -90,7 +92,7 @@ export class Common {
     const p2 = 0;
     // Transaction payload is the byte length as uint32le followed by the bytes
     // Type guard not actually required but TypeScript can't tell that.
-    console.log(txn);
+    if(this.verbose) this.log(txn);
     const rawTxn = typeof txn == "string" ? Buffer.from(txn, "hex") : Buffer.from(txn);
     const hashSize = Buffer.alloc(4);
     hashSize.writeUInt32LE(rawTxn.length, 0);
@@ -98,7 +100,7 @@ export class Common {
     const bip32KeyPayload = buildBip32KeyPayload(path);
     // These are just squashed together
     const payload_txn = Buffer.concat([hashSize, rawTxn]);
-    console.log("Payload Txn", payload_txn);
+    this.log("Payload Txn", payload_txn);
     // TODO batch this since the payload length can be uint32le.max long
     const response = await this.sendChunks(cla, ins, p1, p2, [payload_txn, bip32KeyPayload]);
     // TODO check this
@@ -182,22 +184,22 @@ export class Common {
       }
       // Store the hash that points to the "rest of the list of chunks"
       let lastHash = Buffer.alloc(32);
-      console.log(lastHash);
+      this.log(lastHash);
       // Since we are doing a foldr, we process the last chunk first
       // We have to do it this way, because a block knows the hash of
       // the next block.
       data = chunkList.reduceRight((blocks, chunk) => {
         let linkedChunk = Buffer.concat([lastHash, chunk]);
-        console.log("Chunk: ", chunk);
-                    console.log("linkedChunk: ", linkedChunk);
-                                lastHash = Buffer.from(sha256(linkedChunk));
-                                blocks.set(lastHash.toString('hex'), linkedChunk);
-                                return blocks;
+        this.log("Chunk: ", chunk);
+        this.log("linkedChunk: ", linkedChunk);
+        lastHash = Buffer.from(sha256(linkedChunk));
+        blocks.set(lastHash.toString('hex'), linkedChunk);
+        return blocks;
       }, data);
       parameterList.push(lastHash);
       lastHash = Buffer.alloc(32);
     }
-    console.log(data);
+    this.log(data);
     return await this.handleBlocksProtocol(cla, ins, p1, p2, Buffer.concat([Buffer.from([HostToLedger.START])].concat(parameterList)), data);
   }
 
@@ -212,9 +214,9 @@ export class Common {
     let payload = initialPayload;
     let result = Buffer.alloc(0);
     do {
-      console.log("Sending payload to ledger: ", payload.toString('hex'));
+      this.log("Sending payload to ledger: ", payload.toString('hex'));
       let rv = await this.transport.send(cla, ins, p1, p2, payload);
-      console.log("Received response: ", rv);
+      this.log("Received response: ", rv);
       var rv_instruction = rv[0];
       let rv_payload = rv.slice(1,rv.length-2); // Last two bytes are a return code.
       if ( ! (rv_instruction in LedgerToHost) ) {
@@ -229,8 +231,8 @@ export class Common {
           break;
         case LedgerToHost.GET_CHUNK:
           let chunk = data.get(rv_payload.toString('hex'));
-          console.log("Getting block ", rv_payload);
-          console.log("Getting chunk ", chunk);
+          this.log("Getting block ", rv_payload);
+          this.log("Found block ", chunk);
           if( chunk ) {
             payload = Buffer.concat([Buffer.from([HostToLedger.GET_CHUNK_RESPONSE_SUCCESS]), chunk]);
           } else {
@@ -244,6 +246,10 @@ export class Common {
       }
     } while (rv_instruction != 1);
     return result;
+  }
+
+  log(...args: any[]) {
+    if(this.verbose) console.log(args);
   }
 }
 
