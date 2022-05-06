@@ -19,6 +19,7 @@ import sha256 from "fast-sha256";
 
 export type GetPublicKeyResult = {
   publicKey: string;
+  address: string | null;
 };
 export type SignTransactionResult = {
   signature: string;
@@ -67,10 +68,16 @@ export class Common {
     const p2 = 0;
     const payload = buildBip32KeyPayload(path);
     const response = await this.sendChunks(cla, ins, p1, p2, payload);
-    const responseSize = response[0];
-    const publicKey = response.slice(1, responseSize+1); // slice uses end index.
+    const keySize = response[0];
+    const publicKey = response.slice(1, keySize+1); // slice uses end index.
+    let address : string | null = null;
+    if (response.length > keySize+2) {
+      const addressSize = response[keySize+1];
+      address = response.slice(keySize+2, keySize+2+addressSize).toString("hex");
+    }
     const res: GetPublicKeyResult = {
       publicKey: publicKey.toString("hex"),
+      address: address,
     };
     return res;
   }
