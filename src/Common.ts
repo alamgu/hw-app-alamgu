@@ -104,7 +104,7 @@ export class Common {
     // TODO batch this since the payload length can be uint32le.max long
     const response = await this.sendChunks(cla, ins, p1, p2, [payload_txn, bip32KeyPayload]);
     // TODO check this
-    const signature = response.slice(0,-2).toString("hex");
+    const signature = response.toString("hex");
     return {
       signature,
     };
@@ -152,7 +152,8 @@ export class Common {
     for(let i=0;i<payload.length;i+=chunkSize) {
       rv = await this.transport.send(cla, ins, p1, p2, payload.slice(i, i+chunkSize));
     }
-    return rv;
+    // Remove the status code here instead of in signTransaction, because sendWithBlocks _has_ to handle it.
+    return rv.slice(0,-2);
   }
 
   /**
