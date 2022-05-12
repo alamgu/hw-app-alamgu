@@ -46,7 +46,7 @@ export class Common {
     transport.decorateAppAPIMethods(
       this,
       ["menu", "getPublicKey", "signTransaction", "getVersion"],
-      "KDA"
+      scrambleKey
     );
   }
 
