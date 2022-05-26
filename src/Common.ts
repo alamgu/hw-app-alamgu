@@ -43,10 +43,10 @@ export class Common {
   appName: string | null;
   verbose: boolean | null;
 
-  constructor(transport: Transport, scrambleKey: string, appName: string | null = null) {
+  constructor(transport: Transport, scrambleKey: string, appName: string | null = null, verbosity: boolean | null = null) {
     this.transport = transport;
     this.appName = appName;
-    this.verbose = false;
+    this.verbose = verbosity === true;
     transport.decorateAppAPIMethods(
       this,
       ["menu", "getPublicKey", "signTransaction", "getVersion"],
