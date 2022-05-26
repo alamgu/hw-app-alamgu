@@ -50,7 +50,7 @@ export class Common {
     transport.decorateAppAPIMethods(
       this,
       ["menu", "getPublicKey", "signTransaction", "getVersion"],
-      "KDA"
+      scrambleKey
     );
   }
 
@@ -276,7 +276,7 @@ enum HostToLedger {
     RESULT_ACCUMULATING_RESPONSE = 4
 };
 
-function buildBip32KeyPayload(path: string): Buffer {
+export function buildBip32KeyPayload(path: string): Buffer {
   const paths = splitPath(path);
   // Bip32Key payload is:
   // 1 byte with number of elements in u32 array path
@@ -290,7 +290,7 @@ function buildBip32KeyPayload(path: string): Buffer {
 }
 
 // TODO use bip32-path library
-function splitPath(path: string): number[] {
+export function splitPath(path: string): number[] {
   const result: number[] = [];
   const components = path.split("/");
   components.forEach((element) => {
