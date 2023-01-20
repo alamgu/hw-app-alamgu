@@ -128,7 +128,7 @@ export class Common {
       0x00,
       0x00,
       0x00,
-      Buffer.alloc(0)
+      Buffer.alloc(1)
     );
     return {
       major,
