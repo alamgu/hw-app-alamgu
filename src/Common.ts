@@ -123,7 +123,7 @@ export class Common {
     */
 
   async getVersion(): Promise<GetVersionResult> {
-    const [major, minor, patch, ...appName] = await this.transport.send(
+    const [major, minor, patch, ...appName] = await this.sendChunks(
       0x00,
       0x00,
       0x00,
