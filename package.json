@@ -1,5 +1,5 @@
 {
-  "name": "hw-app-obsidian-common",
+  "name": "hw-app-alamgu",
   "version": "0.1.0",
   "description": "Common routines for ledgerJS modules",
   "main": "lib/Common.js",
@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/obsidiansystems/hw-app-obsidian-common.git"
+    "url": "git+ssh://git@github.com/alamgu/hw-app-alamgu.git"
   },
   "keywords": [
     "Ledger",
@@ -35,7 +35,7 @@
   "author": "",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/obsidiansystems/hw-app-obsidian-common/issues"
+    "url": "https://github.com/alamgu/hw-app-alamgu/issues"
   },
-  "homepage": "https://github.com/obsidiansystems/hw-app-obsidian-common#readme"
+  "homepage": "https://github.com/alamgu/hw-app-alamgu#readme"
 }
