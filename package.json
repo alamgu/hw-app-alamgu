@@ -1,7 +1,7 @@
 {
   "name": "hw-app-alamgu",
   "version": "0.1.0",
-  "description": "Common routines for ledgerJS modules",
+  "description": "Common ledgerJS routines for Alamgu apps",
   "main": "lib/Common.js",
   "module": "lib-es/Common.js",
   "types": "lib/Common.d.ts",
