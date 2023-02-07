@@ -18,11 +18,11 @@ import type Transport from "@ledgerhq/hw-transport";
 import sha256 from "fast-sha256";
 
 export type GetPublicKeyResult = {
-  publicKey: string;
-  address: string | null;
+  publicKey: Uint8Array;
+  address: Uint8Array | null;
 };
 export type SignTransactionResult = {
-  signature: string;
+  signature: Uint8Array;
 };
 export type GetVersionResult = {
   major: number;
@@ -70,13 +70,13 @@ export class Common {
     const response = await this.sendChunks(cla, ins, p1, p2, payload);
     const keySize = response[0];
     const publicKey = response.slice(1, keySize+1); // slice uses end index.
-    let address : string | null = null;
+    let address : Uint8Array | null = null;
     if (response.length > keySize+2) {
       const addressSize = response[keySize+1];
-      address = response.slice(keySize+2, keySize+2+addressSize).toString("hex");
+      address = response.slice(keySize+2, keySize+2+addressSize);
     }
     const res: GetPublicKeyResult = {
-      publicKey: publicKey.toString("hex"),
+      publicKey: publicKey,
       address: address,
     };
     return res;
@@ -109,9 +109,7 @@ export class Common {
     const payload_txn = Buffer.concat([hashSize, rawTxn]);
     this.log("Payload Txn", payload_txn);
     // TODO batch this since the payload length can be uint32le.max long
-    const response = await this.sendChunks(cla, ins, p1, p2, [payload_txn, bip32KeyPayload]);
-    // TODO check this
-    const signature = response.toString("hex");
+    const signature = await this.sendChunks(cla, ins, p1, p2, [payload_txn, bip32KeyPayload]);
     return {
       signature,
     };
