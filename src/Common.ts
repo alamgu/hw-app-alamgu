@@ -49,9 +49,21 @@ export class Common {
     this.verbose = verbosity === true;
     transport.decorateAppAPIMethods(
       this,
-      ["menu", "getPublicKey", "signTransaction", "getVersion"],
+      ["verifyAddress", "getPublicKey", "signTransaction", "getVersion"],
       scrambleKey
     );
+  }
+
+  /**
+   * Shows the address associated with a particular BIP32 path for verification,
+   * and retrieves the public key and the address.
+   *
+   * @param path - the path to retrieve.
+   */
+  async verifyAddress(
+    path: string,
+  ): Promise<GetPublicKeyResult> {
+    return this.getPublicKeyInternal(path, true);
   }
 
   /**
@@ -62,8 +74,15 @@ export class Common {
   async getPublicKey(
     path: string,
   ): Promise<GetPublicKeyResult> {
+    return this.getPublicKeyInternal(path, false);
+  }
+
+  async getPublicKeyInternal(
+    path: string,
+    do_prompt: boolean,
+  ): Promise<GetPublicKeyResult> {
     const cla = 0x00;
-    const ins = 0x02;
+    const ins = do_prompt? 0x01: 0x02;
     const p1 = 0;
     const p2 = 0;
     const payload = buildBip32KeyPayload(path);
