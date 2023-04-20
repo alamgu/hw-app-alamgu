@@ -34,8 +34,8 @@ export type GetVersionResult = {
  * Common API for ledger apps
  *
  * @example
- * import Kadena from "hw-app-kda";
- * const kda = new Kadena(transport)
+ * import Common from "hw-app-alamgu";
+ * const alamgu = new Common(transport)
  */
 
 export class Common {
