@@ -250,7 +250,7 @@ export class Common {
           payload = Buffer.from([HostToLedger.PUT_CHUNK_RESPONSE]);
           break;
       }
-    } while (rv_instruction != 1);
+    } while (rv_instruction != LedgerToHost.RESULT_FINAL);
     return result;
   }
 
