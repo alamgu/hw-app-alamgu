@@ -82,7 +82,7 @@ export class Common {
     do_prompt: boolean,
   ): Promise<GetPublicKeyResult> {
     const cla = 0x00;
-    const ins = do_prompt? 0x01: 0x02;
+    const ins = do_prompt ? 0x01 : 0x02;
     const p1 = 0;
     const p2 = 0;
     const payload = buildBip32KeyPayload(path);
